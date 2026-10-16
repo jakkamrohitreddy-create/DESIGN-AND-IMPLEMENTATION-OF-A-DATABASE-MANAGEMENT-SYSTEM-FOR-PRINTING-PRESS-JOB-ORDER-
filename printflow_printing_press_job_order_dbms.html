@@ -1,0 +1,1262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PrintFlow - Printing Press Job Order DBMS</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    @media print {
+      body * { visibility: hidden; }
+      #printableTicket, #printableTicket * { visibility: visible; }
+      #printableTicket { position: absolute; left: 0; top: 0; width: 100%; }
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-900 min-h-screen flex flex-col">
+  <!-- Top Navigation Bar -->
+  <header class="bg-indigo-950 text-white shadow-md sticky top-0 z-20">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-lg bg-indigo-600 flex items-center justify-center font-bold text-xl shadow-inner border border-indigo-400/30">
+          🖨️
+        </div>
+        <div>
+          <h1 class="font-bold text-lg leading-tight tracking-tight">PrintFlow DBMS <span class="text-xs font-normal bg-indigo-800 text-indigo-200 px-2 py-0.5 rounded ml-1">v2.0 Pro</span></h1>
+          <p class="text-xs text-indigo-300">Printing Press Job Order &amp; Production Database System</p>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <nav class="hidden md:flex items-center space-x-1 bg-indigo-900/70 p-1 rounded-lg border border-indigo-800">
+        <button id="tabOrdersBtn" data-tab="ordersView" class="tab-btn bg-indigo-600 text-white text-xs font-semibold px-3.5 py-1.5 rounded-md transition">
+          📋 Job Registry
+        </button>
+        <button id="tabEstimatorBtn" data-tab="estimatorView" class="tab-btn text-indigo-200 hover:text-white text-xs font-semibold px-3.5 py-1.5 rounded-md transition">
+          🧮 Cost Estimator
+        </button>
+        <button id="tabSqlBtn" data-tab="sqlView" class="tab-btn text-indigo-200 hover:text-white text-xs font-semibold px-3.5 py-1.5 rounded-md transition">
+          🗄️ SQL &amp; ER Schema
+        </button>
+      </nav>
+
+      <div class="flex items-center space-x-2">
+        <button id="exportCsvBtn" class="bg-indigo-800 hover:bg-indigo-700 text-indigo-100 text-xs font-medium px-3 py-2 rounded-lg transition border border-indigo-700 hidden sm:inline-flex items-center space-x-1">
+          <span>⬇️ CSV</span>
+        </button>
+        <button id="openNewOrderModalBtn" class="bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white text-sm font-semibold px-4 py-2 rounded-lg shadow transition flex items-center space-x-1">
+          <span>+ Create Job Order</span>
+        </button>
+        <button id="resetDemoDataBtn" class="bg-indigo-900 hover:bg-indigo-800 text-indigo-300 hover:text-white text-xs px-2.5 py-2 rounded-lg transition border border-indigo-800" title="Restore Demo Database">
+          Reset Demo Data
+        </button>
+      </div>
+    </div>
+
+    <!-- Mobile Tab Bar -->
+    <div class="flex md:hidden bg-indigo-900 px-4 py-2 space-x-2 border-t border-indigo-800 overflow-x-auto">
+      <button data-tab="ordersView" class="tab-btn bg-indigo-600 text-white text-xs font-semibold px-3 py-1.5 rounded-md whitespace-nowrap">📋 Job Registry</button>
+      <button data-tab="estimatorView" class="tab-btn text-indigo-200 text-xs font-semibold px-3 py-1.5 rounded-md whitespace-nowrap">🧮 Cost Estimator</button>
+      <button data-tab="sqlView" class="tab-btn text-indigo-200 text-xs font-semibold px-3 py-1.5 rounded-md whitespace-nowrap">🗄️ SQL &amp; ER Schema</button>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 flex-1">
+    <!-- Quick Statistics KPI Cards -->
+    <section class="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+        <div>
+          <p class="text-xs font-medium text-slate-500 uppercase tracking-wider">Total Job Orders</p>
+          <p id="statTotalOrders" class="text-2xl font-bold text-slate-900 mt-1">0</p>
+          <p id="statTotalRevenue" class="text-xs text-slate-400 mt-0.5">Gross: $0.00</p>
+        </div>
+        <div class="w-10 h-10 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center font-semibold text-lg">📋</div>
+      </div>
+      <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+        <div>
+          <p class="text-xs font-medium text-slate-500 uppercase tracking-wider">In Production</p>
+          <p id="statInProduction" class="text-2xl font-bold text-amber-600 mt-1">0</p>
+          <p class="text-xs text-slate-400 mt-0.5">Pre-Press / Press / Finish</p>
+        </div>
+        <div class="w-10 h-10 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center font-semibold text-lg">⚙️</div>
+      </div>
+      <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+        <div>
+          <p class="text-xs font-medium text-slate-500 uppercase tracking-wider">Completed / Ready</p>
+          <p id="statCompleted" class="text-2xl font-bold text-emerald-600 mt-1">0</p>
+          <p id="statCollectedRevenue" class="text-xs text-emerald-600 font-medium mt-0.5">Paid: $0.00</p>
+        </div>
+        <div class="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center font-semibold text-lg">✅</div>
+      </div>
+      <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+        <div>
+          <p class="text-xs font-medium text-slate-500 uppercase tracking-wider">Outstanding Balance</p>
+          <p id="statOutstandingBalance" class="text-2xl font-bold text-rose-600 mt-1">$0</p>
+          <p class="text-xs text-rose-400 mt-0.5">Receivables pending</p>
+        </div>
+        <div class="w-10 h-10 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center font-semibold text-lg">💳</div>
+      </div>
+    </section>
+
+    <!-- VIEW 1: JOB ORDERS REGISTRY -->
+    <div id="ordersView" class="space-y-6">
+      <!-- Search, Filters, and Action Bar -->
+      <section class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-3 items-center justify-between">
+        <div class="w-full md:w-80 relative">
+          <input type="text" id="searchInput" placeholder="Search by Job ID, Client, Machine, or Title..." class="w-full pl-9 pr-4 py-2 text-sm rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+          <span class="absolute left-3 top-2.5 text-slate-400 text-sm">🔍</span>
+        </div>
+        <div class="flex flex-wrap items-center gap-2 w-full md:w-auto">
+          <label for="statusFilter" class="text-xs font-medium text-slate-500">Status:</label>
+          <select id="statusFilter" class="text-sm border border-slate-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
+            <option value="ALL">All Statuses</option>
+            <option value="Pending">Pending Approval</option>
+            <option value="Pre-Press">Pre-Press / Plates</option>
+            <option value="Printing">Printing / Press</option>
+            <option value="Finishing">Post-Press / Finishing</option>
+            <option value="Ready">Ready for Delivery</option>
+            <option value="Delivered">Delivered / Closed</option>
+          </select>
+
+          <label for="categoryFilter" class="text-xs font-medium text-slate-500 ml-2">Category:</label>
+          <select id="categoryFilter" class="text-sm border border-slate-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
+            <option value="ALL">All Categories</option>
+            <option value="Brochures / Flyers">Brochures / Flyers</option>
+            <option value="Books / Booklets">Books / Booklets</option>
+            <option value="Stationery / Cards">Stationery / Cards</option>
+            <option value="Packaging / Boxes">Packaging / Boxes</option>
+            <option value="Large Format Banners">Large Format Banners</option>
+          </select>
+        </div>
+      </section>
+
+      <!-- Database Job Orders Table -->
+      <section class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
+          <div>
+            <h2 class="font-bold text-slate-800 text-base">Press Job Orders Registry</h2>
+            <p class="text-xs text-slate-500">Live records from the relational database storage engine</p>
+          </div>
+          <span id="recordCountBadge" class="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-200 text-slate-700">0 orders</span>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-sm">
+            <thead>
+              <tr class="bg-slate-100 text-slate-600 text-xs font-semibold uppercase tracking-wider border-b border-slate-200">
+                <th class="py-3 px-4">Order ID &amp; Date</th>
+                <th class="py-3 px-4">Client Details</th>
+                <th class="py-3 px-4">Job Description &amp; Spec</th>
+                <th class="py-3 px-4">Press &amp; Qty</th>
+                <th class="py-3 px-4">Financials</th>
+                <th class="py-3 px-4">Status</th>
+                <th class="py-3 px-4 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="ordersTableBody" class="divide-y divide-slate-100">
+              <!-- Dynamically populated rows -->
+            </tbody>
+          </table>
+        </div>
+
+        <div id="emptyStateMessage" class="hidden py-12 text-center text-slate-400">
+          <p class="text-3xl mb-2">📄</p>
+          <p class="font-medium text-slate-600">No job orders found</p>
+          <p class="text-xs text-slate-400 mt-1">Try clearing your filters or create a new job order above.</p>
+        </div>
+      </section>
+    </div>
+
+    <!-- VIEW 2: AUTOMATED PAPER & PRINT COSTING ESTIMATOR -->
+    <div id="estimatorView" class="hidden space-y-6">
+      <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="bg-indigo-900 px-6 py-4 text-white flex justify-between items-center">
+          <div>
+            <h2 class="font-bold text-base">Automated Press Costing &amp; Quotation Calculator</h2>
+            <p class="text-xs text-indigo-200">Compute paper reams, CTP plate setup, ink impressions, and post-press finishing</p>
+          </div>
+          <span class="text-xs bg-indigo-700 px-3 py-1 rounded-full font-mono">Formula Engine v2</span>
+        </div>
+
+        <div class="p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div class="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label for="estJobType" class="block text-xs font-semibold text-slate-700 mb-1">Job Category</label>
+              <select id="estJobType" class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 bg-white">
+                <option value="Brochures / Flyers">Brochures / Flyers</option>
+                <option value="Books / Booklets">Books / Booklets</option>
+                <option value="Stationery / Cards">Stationery / Cards</option>
+                <option value="Packaging / Boxes">Packaging / Boxes</option>
+                <option value="Large Format Banners">Large Format Banners</option>
+              </select>
+            </div>
+            <div>
+              <label for="estQuantity" class="block text-xs font-semibold text-slate-700 mb-1">Run Quantity (Copies)</label>
+              <input type="number" id="estQuantity" value="2000" min="10" class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2">
+            </div>
+            <div>
+              <label for="estUps" class="block text-xs font-semibold text-slate-700 mb-1">Units Per Parent Sheet (Ups)</label>
+              <select id="estUps" class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 bg-white">
+                <option value="4">4-Up (A4 on 20x30" Sheet)</option>
+                <option value="8" selected>8-Up (A5 on 20x30" Sheet)</option>
+                <option value="24">24-Up (Business Cards)</option>
+                <option value="2">2-Up (A3 Poster)</option>
+                <option value="1">1-Up (Large Format Banner)</option>
+              </select>
+            </div>
+            <div>
+              <label for="estPaperCost" class="block text-xs font-semibold text-slate-700 mb-1">Paper Rate per Ream (500 Sheets $)</label>
+              <input type="number" id="estPaperCost" value="45" min="1" step="0.5" class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2">
+            </div>
+            <div>
+              <label for="estColorPlates" class="block text-xs font-semibold text-slate-700 mb-1">CTP Plates &amp; Color Setup</label>
+              <select id="estColorPlates" class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 bg-white">
+                <option value="4" selected>4 Plates (Full Color CMYK - $60)</option>
+                <option value="8">8 Plates (CMYK Front &amp; Back - $120)</option>
+                <option value="2">2 Plates (Spot Two-Color - $30)</option>
+                <option value="1">1 Plate (Single Color Black - $15)</option>
+                <option value="0">Digital / No Plates ($0)</option>
+              </select>
+            </div>
+            <div>
+              <label for="estFinishingCost" class="block text-xs font-semibold text-slate-700 mb-1">Finishing &amp; Binding Rate (per 1,000 pcs $)</label>
+              <input type="number" id="estFinishingCost" value="25" min="0" step="1" class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2">
+            </div>
+            <div>
+              <label for="estSpoilage" class="block text-xs font-semibold text-slate-700 mb-1">Press Make-Ready &amp; Spoilage (%)</label>
+              <input type="number" id="estSpoilage" value="5" min="0" max="30" class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2">
+            </div>
+            <div>
+              <label for="estMarkup" class="block text-xs font-semibold text-slate-700 mb-1">Press Profit Margin (%)</label>
+              <input type="number" id="estMarkup" value="20" min="0" max="100" class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2">
+            </div>
+          </div>
+
+          <!-- Output Breakdown Card -->
+          <div class="bg-slate-900 text-white rounded-xl p-5 flex flex-col justify-between space-y-4">
+            <div class="space-y-3">
+              <h3 class="text-xs font-bold uppercase tracking-wider text-indigo-300 border-b border-slate-700 pb-2">Production Cost Breakdown</h3>
+              <div class="flex justify-between text-xs">
+                <span class="text-slate-400">Net Parent Sheets (+Spoilage):</span>
+                <span id="calcSheetsOut" class="font-mono font-semibold text-white">0 sheets</span>
+              </div>
+              <div class="flex justify-between text-xs">
+                <span class="text-slate-400">Paper Stock Cost:</span>
+                <span id="calcPaperOut" class="font-mono text-emerald-300">$0.00</span>
+              </div>
+              <div class="flex justify-between text-xs">
+                <span class="text-slate-400">CTP Plates &amp; Pre-Press:</span>
+                <span id="calcPlateOut" class="font-mono text-emerald-300">$0.00</span>
+              </div>
+              <div class="flex justify-between text-xs">
+                <span class="text-slate-400">Press Impressions &amp; Finishing:</span>
+                <span id="calcFinishOut" class="font-mono text-emerald-300">$0.00</span>
+              </div>
+              <div class="flex justify-between text-xs pt-2 border-t border-slate-800">
+                <span class="text-slate-400">Unit Cost per Copy:</span>
+                <span id="calcUnitOut" class="font-mono font-semibold text-indigo-300">$0.000</span>
+              </div>
+            </div>
+
+            <div class="pt-3 border-t border-slate-700 space-y-3">
+              <div class="flex justify-between items-baseline">
+                <span class="text-xs uppercase font-bold text-slate-300">Recommended Quote:</span>
+                <span id="calcTotalQuote" class="text-2xl font-bold text-emerald-400">$0.00</span>
+              </div>
+              <button id="convertEstimateToOrderBtn" class="w-full py-2.5 px-4 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold text-xs rounded-lg shadow transition">
+                ➔ Load Estimate into New Job Order
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- VIEW 3: DATABASE SCHEMA & SQL EXPORT -->
+    <div id="sqlView" class="hidden space-y-6">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Entity-Relationship Diagram Summary -->
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5 space-y-4">
+          <h3 class="font-bold text-slate-800 text-sm border-b pb-2">Relational DBMS Schema (3NF)</h3>
+          <div class="space-y-3 text-xs">
+            <div class="p-3 bg-indigo-50/70 rounded-lg border border-indigo-200">
+              <p class="font-bold text-indigo-950 font-mono">1. customers (Table)</p>
+              <ul class="mt-1 space-y-0.5 text-slate-600 font-mono text-[11px]">
+                <li>🔑 customer_id (INT, PK)</li>
+                <li>&bull; client_name (VARCHAR(120))</li>
+                <li>&bull; contact_phone (VARCHAR(40))</li>
+                <li>&bull; created_at (DATE)</li>
+              </ul>
+            </div>
+            <div class="p-3 bg-emerald-50/70 rounded-lg border border-emerald-200">
+              <p class="font-bold text-emerald-950 font-mono">2. job_orders (Table)</p>
+              <ul class="mt-1 space-y-0.5 text-slate-600 font-mono text-[11px]">
+                <li>🔑 job_id (VARCHAR(20), PK)</li>
+                <li>🔗 customer_id (INT, FK)</li>
+                <li>&bull; job_title (VARCHAR(200))</li>
+                <li>&bull; category (VARCHAR(80))</li>
+                <li>&bull; paper_spec (VARCHAR(120))</li>
+                <li>&bull; print_size (VARCHAR(60))</li>
+                <li>&bull; press_machine (VARCHAR(80))</li>
+                <li>&bull; quantity (INT)</li>
+                <li>&bull; finishing (VARCHAR(150))</li>
+                <li>&bull; order_date, due_date (DATE)</li>
+                <li>&bull; status (ENUM)</li>
+              </ul>
+            </div>
+            <div class="p-3 bg-amber-50/70 rounded-lg border border-amber-200">
+              <p class="font-bold text-amber-950 font-mono">3. job_billing (Table)</p>
+              <ul class="mt-1 space-y-0.5 text-slate-600 font-mono text-[11px]">
+                <li>🔑 billing_id (INT, PK)</li>
+                <li>🔗 job_id (VARCHAR(20), FK)</li>
+                <li>&bull; total_cost (DECIMAL(10,2))</li>
+                <li>&bull; advance_paid (DECIMAL(10,2))</li>
+                <li>&bull; balance_due (GENERATED)</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- Live Generated SQL Code -->
+        <div class="lg:col-span-2 bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col overflow-hidden">
+          <div class="px-5 py-3 bg-slate-800 text-white flex flex-wrap gap-2 justify-between items-center">
+            <div>
+              <h3 class="font-bold text-sm">Live SQL DDL &amp; DML Generator</h3>
+              <p class="text-xs text-slate-400">Auto-generated MySQL / PostgreSQL script from active records</p>
+            </div>
+            <div class="flex space-x-2">
+              <button id="copySqlBtn" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold rounded-md transition">
+                📋 Copy SQL
+              </button>
+              <button id="downloadSqlBtn" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-xs font-semibold rounded-md transition">
+                ⬇️ Download .SQL
+              </button>
+            </div>
+          </div>
+          <pre id="sqlCodeBlock" class="p-4 bg-slate-950 text-emerald-300 font-mono text-xs overflow-x-auto flex-1 max-h-96 leading-relaxed select-all"></pre>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Create / Edit Order Modal -->
+  <div id="orderModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-30 hidden items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full my-8 overflow-hidden border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
+      <div class="bg-indigo-900 px-6 py-4 text-white flex justify-between items-center">
+        <div>
+          <h3 id="modalTitle" class="font-bold text-lg">New Printing Press Job Order</h3>
+          <p class="text-xs text-indigo-200">Fill in client, production specification, press assignment, and billing records</p>
+        </div>
+        <button id="closeOrderModalBtn" class="text-indigo-200 hover:text-white text-xl font-bold px-2 py-1">&times;</button>
+      </div>
+
+      <form id="orderForm" class="p-6 space-y-4">
+        <input type="hidden" id="formOrderId">
+
+        <!-- Client Information -->
+        <div>
+          <h4 class="text-xs font-bold text-indigo-900 uppercase tracking-wider mb-2 border-b pb-1">1. Client Information</h4>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label for="clientNameInput" class="block text-xs font-medium text-slate-700 mb-1">Customer / Company Name *</label>
+              <input type="text" id="clientNameInput" required placeholder="e.g. Apex Media Ltd" class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            </div>
+            <div>
+              <label for="clientPhoneInput" class="block text-xs font-medium text-slate-700 mb-1">Contact Phone *</label>
+              <input type="text" id="clientPhoneInput" required placeholder="e.g. +1 555-0199" class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            </div>
+          </div>
+        </div>
+
+        <!-- Job Specification -->
+        <div>
+          <h4 class="text-xs font-bold text-indigo-900 uppercase tracking-wider mb-2 border-b pb-1">2. Production &amp; Technical Specification</h4>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label for="jobTitleInput" class="block text-xs font-medium text-slate-700 mb-1">Job Title / Item Description *</label>
+              <input type="text" id="jobTitleInput" required placeholder="e.g. Annual Company Catalog" class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            </div>
+            <div>
+              <label for="jobCategoryInput" class="block text-xs font-medium text-slate-700 mb-1">Job Category *</label>
+              <select id="jobCategoryInput" required class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white">
+                <option value="Brochures / Flyers">Brochures / Flyers</option>
+                <option value="Books / Booklets">Books / Booklets</option>
+                <option value="Stationery / Cards">Stationery / Cards</option>
+                <option value="Packaging / Boxes">Packaging / Boxes</option>
+                <option value="Large Format Banners">Large Format Banners</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
+            <div>
+              <label for="paperSpecInput" class="block text-xs font-medium text-slate-700 mb-1">Paper / Stock *</label>
+              <input type="text" id="paperSpecInput" required placeholder="e.g. 150gsm Gloss Art" class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            </div>
+            <div>
+              <label for="printSizeInput" class="block text-xs font-medium text-slate-700 mb-1">Finished Size *</label>
+              <input type="text" id="printSizeInput" required placeholder="e.g. A4 (210 x 297mm)" class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            </div>
+            <div>
+              <label for="quantityInput" class="block text-xs font-medium text-slate-700 mb-1">Quantity (Copies) *</label>
+              <input type="number" id="quantityInput" min="1" required placeholder="1000" class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
+            <div>
+              <label for="pressMachineInput" class="block text-xs font-medium text-slate-700 mb-1">Assigned Press Machine</label>
+              <select id="pressMachineInput" class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white">
+                <option value="Heidelberg Speedmaster 4C">Heidelberg Speedmaster 4C</option>
+                <option value="Komori Lithrone G40">Komori Lithrone G40</option>
+                <option value="Konica Minolta Digital Press">Konica Minolta Digital Press</option>
+                <option value="Roland TrueVIS Large Format">Roland TrueVIS Large Format</option>
+              </select>
+            </div>
+            <div>
+              <label for="finishingInput" class="block text-xs font-medium text-slate-700 mb-1">Finishing / Post-Press</label>
+              <input type="text" id="finishingInput" placeholder="e.g. Matte Lamination, Perfect Binding" class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            </div>
+            <div>
+              <label for="dueDateInput" class="block text-xs font-medium text-slate-700 mb-1">Target Delivery Date *</label>
+              <input type="date" id="dueDateInput" required class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            </div>
+          </div>
+        </div>
+
+        <!-- Billing & Financials -->
+        <div>
+          <div class="flex justify-between items-center mb-2 border-b pb-1">
+            <h4 class="text-xs font-bold text-indigo-900 uppercase tracking-wider">3. Billing &amp; Status</h4>
+            <button type="button" id="autoCalcModalBtn" class="text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold px-2.5 py-1 rounded border border-indigo-200 transition">
+              ⚡ Auto-Calculate Cost from Qty
+            </button>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label for="totalCostInput" class="block text-xs font-medium text-slate-700 mb-1">Total Job Cost ($) *</label>
+              <input type="number" id="totalCostInput" min="0" step="0.01" required placeholder="500.00" class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            </div>
+            <div>
+              <label for="advancePaidInput" class="block text-xs font-medium text-slate-700 mb-1">Advance Paid ($) *</label>
+              <input type="number" id="advancePaidInput" min="0" step="0.01" required placeholder="250.00" class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            </div>
+            <div>
+              <label for="orderStatusInput" class="block text-xs font-medium text-slate-700 mb-1">Production Status *</label>
+              <select id="orderStatusInput" required class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-white">
+                <option value="Pending">Pending Approval</option>
+                <option value="Pre-Press">Pre-Press / Plates</option>
+                <option value="Printing">Printing / Press</option>
+                <option value="Finishing">Post-Press / Finishing</option>
+                <option value="Ready">Ready for Delivery</option>
+                <option value="Delivered">Delivered / Closed</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Submit Buttons -->
+        <div class="flex items-center justify-end space-x-3 pt-3 border-t">
+          <button type="button" id="cancelOrderModalBtn" class="px-4 py-2 text-sm text-slate-600 hover:text-slate-800 font-medium rounded-lg">Cancel</button>
+          <button type="submit" id="saveOrderBtn" class="px-5 py-2 text-sm bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-semibold rounded-lg shadow transition">Save Job Order</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Job Ticket / Printable Order Slip Modal -->
+  <div id="ticketModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-30 hidden items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-xl w-full my-8 overflow-hidden border border-slate-200">
+      <div class="bg-slate-800 px-6 py-3 text-white flex justify-between items-center">
+        <h3 class="font-bold text-sm">Official Job Order Production Docket</h3>
+        <button id="closeTicketModalBtn" class="text-slate-300 hover:text-white text-lg font-bold">&times;</button>
+      </div>
+
+      <div id="printableTicket" class="p-6 bg-white space-y-4">
+        <!-- Ticket Header -->
+        <div class="border-b-2 border-indigo-900 pb-3 flex justify-between items-start">
+          <div>
+            <h2 class="text-xl font-bold text-indigo-950 uppercase tracking-tight">PRINTING PRESS DOCKET</h2>
+            <p class="text-xs text-slate-500">Department of Production &amp; Quality Assurance</p>
+          </div>
+          <div class="text-right">
+            <span id="ticketJobId" class="inline-block bg-indigo-100 text-indigo-900 font-mono font-bold text-sm px-3 py-1 rounded">JOB-XXXX</span>
+            <p id="ticketDate" class="text-xs text-slate-500 mt-1">Date: 2026-10-15</p>
+          </div>
+        </div>
+
+        <!-- Ticket Body Grid -->
+        <div class="grid grid-cols-2 gap-4 text-xs">
+          <div class="bg-slate-50 p-3 rounded-lg border border-slate-200">
+            <p class="font-bold text-slate-600 uppercase mb-1">Customer Profile</p>
+            <p id="ticketClientName" class="font-bold text-slate-900 text-sm">Client Name</p>
+            <p id="ticketClientPhone" class="text-slate-600 mt-0.5">Phone: +1 555-0100</p>
+          </div>
+          <div class="bg-slate-50 p-3 rounded-lg border border-slate-200">
+            <p class="font-bold text-slate-600 uppercase mb-1">Schedule &amp; Workflow</p>
+            <p class="text-slate-600">Due Date: <span id="ticketDueDate" class="font-semibold text-slate-900">2026-10-20</span></p>
+            <p class="text-slate-600 mt-0.5">Stage: <span id="ticketStatus" class="font-bold text-indigo-700">Printing</span></p>
+          </div>
+        </div>
+
+        <!-- Specifications Breakdown -->
+        <div class="border border-slate-200 rounded-lg p-3 text-xs space-y-2 bg-slate-50/50">
+          <p class="font-bold text-slate-700 uppercase border-b pb-1">Technical Specs</p>
+          <div class="grid grid-cols-2 gap-2">
+            <div><span class="text-slate-500">Job Title:</span> <span id="ticketJobTitle" class="font-semibold text-slate-900">Catalog</span></div>
+            <div><span class="text-slate-500">Category:</span> <span id="ticketCategory" class="font-medium text-slate-800">Booklet</span></div>
+            <div><span class="text-slate-500">Paper / Grammage:</span> <span id="ticketPaper" class="font-medium text-slate-800">150gsm</span></div>
+            <div><span class="text-slate-500">Dimensions:</span> <span id="ticketSize" class="font-medium text-slate-800">A4</span></div>
+            <div><span class="text-slate-500">Run Quantity:</span> <span id="ticketQuantity" class="font-bold text-indigo-900">5,000 pcs</span></div>
+            <div><span class="text-slate-500">Finishing:</span> <span id="ticketFinishing" class="font-medium text-slate-800">Laminated</span></div>
+            <div class="col-span-2"><span class="text-slate-500">Assigned Press:</span> <span id="ticketMachine" class="font-semibold text-indigo-800">Heidelberg Speedmaster 4C</span></div>
+          </div>
+        </div>
+
+        <!-- Billing Summary -->
+        <div class="bg-indigo-50 border border-indigo-200 rounded-lg p-3 text-xs flex justify-between items-center">
+          <div>
+            <p class="text-indigo-900 font-medium">Total Charge: <span id="ticketTotal" class="font-bold">$0.00</span></p>
+            <p class="text-emerald-700">Advance Paid: <span id="ticketAdvance" class="font-medium">$0.00</span></p>
+          </div>
+          <div class="text-right">
+            <p class="text-xs uppercase font-bold text-rose-700">Balance Due</p>
+            <p id="ticketBalance" class="text-base font-bold text-rose-800">$0.00</p>
+          </div>
+        </div>
+
+        <!-- Sign-off fields -->
+        <div class="grid grid-cols-2 gap-6 pt-4 text-xs text-slate-500 border-t border-slate-200">
+          <div>
+            <div class="h-8 border-b border-slate-400"></div>
+            <p class="mt-1 text-center font-medium">Press Operator Signature</p>
+          </div>
+          <div>
+            <div class="h-8 border-b border-slate-400"></div>
+            <p class="mt-1 text-center font-medium">Customer Acknowledgment</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer Buttons -->
+      <div class="bg-slate-50 px-6 py-3 border-t flex justify-end space-x-2">
+        <button id="printTicketBtn" class="px-4 py-1.5 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg shadow">🖨️ Print Docket</button>
+        <button id="closeTicketModalBtn2" class="px-4 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-800 border rounded-lg">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Delete Confirmation Modal -->
+  <div id="deleteModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-30 hidden items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-xl max-w-sm w-full p-6 space-y-4 border border-slate-200 text-center">
+      <div class="w-12 h-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto text-xl font-bold">⚠️</div>
+      <h3 class="font-bold text-slate-900 text-base">Delete Job Order Record?</h3>
+      <p class="text-xs text-slate-500">Are you sure you want to delete order <span id="deleteTargetOrderId" class="font-mono font-bold text-slate-800"></span>? This action removes the record from the database storage.</p>
+      <div class="flex space-x-2 justify-center pt-2">
+        <button id="cancelDeleteBtn" class="px-4 py-1.5 text-xs text-slate-600 border rounded-lg hover:bg-slate-50 font-medium">Cancel</button>
+        <button id="confirmDeleteBtn" class="px-4 py-1.5 text-xs bg-rose-600 hover:bg-rose-700 text-white font-semibold rounded-lg shadow">Confirm Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- In-Page Toast Notification -->
+  <div id="toastNotification" class="fixed bottom-5 right-5 bg-slate-900 text-white text-xs px-4 py-2.5 rounded-lg shadow-lg flex items-center space-x-2 transition-all duration-300 opacity-0 pointer-events-none transform translate-y-3 z-40">
+    <span id="toastIcon">ℹ️</span>
+    <span id="toastMessage">Notification message</span>
+  </div>
+
+  <!-- Application Logic & In-Memory Database -->
+  <script>
+    // Initial Seed Database records based on printing press domain research
+    const SEED_DATA = [
+      {
+        id: "JOB-1001",
+        date: "2026-10-12",
+        clientName: "Horizon Tech Institute",
+        clientPhone: "+1 (555) 234-5678",
+        jobTitle: "Annual Student Handbook 2026/27",
+        category: "Books / Booklets",
+        paperSpec: "Inner 80gsm Bond, Cover 300gsm Art Card",
+        size: "A5 (148 x 210mm)",
+        pressMachine: "Heidelberg Speedmaster 4C",
+        quantity: 1200,
+        finishing: "Perfect Binding, Gloss Laminated Cover",
+        dueDate: "2026-10-22",
+        totalCost: 1850.00,
+        advancePaid: 1000.00,
+        status: "Printing"
+      },
+      {
+        id: "JOB-1002",
+        date: "2026-10-14",
+        clientName: "GreenVibe Organics",
+        clientPhone: "+1 (555) 876-5432",
+        jobTitle: "Product Promotional Trifold Flyers",
+        category: "Brochures / Flyers",
+        paperSpec: "150gsm Gloss Art Paper",
+        size: "A4 Trifold (99 x 210mm)",
+        pressMachine: "Komori Lithrone G40",
+        quantity: 5000,
+        finishing: "Machine Folding, UV Spot Varnish",
+        dueDate: "2026-10-18",
+        totalCost: 480.00,
+        advancePaid: 480.00,
+        status: "Pre-Press"
+      },
+      {
+        id: "JOB-1003",
+        date: "2026-10-15",
+        clientName: "Apex Corporate Law",
+        clientPhone: "+1 (555) 432-1098",
+        jobTitle: "Executive Foil Stamped Business Cards",
+        category: "Stationery / Cards",
+        paperSpec: "400gsm Cotton Velvet Card",
+        size: "Standard (85 x 55mm)",
+        pressMachine: "Konica Minolta Digital Press",
+        quantity: 1000,
+        finishing: "Gold Foil Stamp, Matte Soft-Touch Lam",
+        dueDate: "2026-10-17",
+        totalCost: 320.00,
+        advancePaid: 150.00,
+        status: "Finishing"
+      },
+      {
+        id: "JOB-1004",
+        date: "2026-10-11",
+        clientName: "Metro Supermarket",
+        clientPhone: "+1 (555) 991-8822",
+        jobTitle: "Outdoor Promo Mesh Banners",
+        category: "Large Format Banners",
+        paperSpec: "440gsm Frontlit Flex Vinyl",
+        size: "3m x 1m Large Format",
+        pressMachine: "Roland TrueVIS Large Format",
+        quantity: 10,
+        finishing: "Eyelets every 50cm, Hemmed Edges",
+        dueDate: "2026-10-13",
+        totalCost: 550.00,
+        advancePaid: 550.00,
+        status: "Delivered"
+      }
+    ];
+
+    const STORAGE_KEY = "printflow_job_orders_db_v1";
+
+    // DBMS State Controller
+    class PressDatabaseManager {
+      constructor() {
+        this.orders = this.loadData();
+      }
+
+      loadData() {
+        try {
+          const stored = localStorage.getItem(STORAGE_KEY);
+          if (stored) {
+            return JSON.parse(stored);
+          }
+        } catch (e) {
+          console.warn("Storage access failed, using in-memory state:", e);
+        }
+        return JSON.parse(JSON.stringify(SEED_DATA));
+      }
+
+      saveData() {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(this.orders));
+        } catch (e) {
+          console.warn("Storage save failed:", e);
+        }
+      }
+
+      resetToSeed() {
+        this.orders = JSON.parse(JSON.stringify(SEED_DATA));
+        this.saveData();
+      }
+
+      getAll() {
+        return this.orders;
+      }
+
+      getById(id) {
+        return this.orders.find(o => o.id === id);
+      }
+
+      generateNextId() {
+        const numbers = this.orders.map(o => {
+          const match = o.id.match(/\d+/);
+          return match ? parseInt(match[0], 10) : 1000;
+        });
+        const max = numbers.length > 0 ? Math.max(...numbers) : 1000;
+        return `JOB-${max + 1}`;
+      }
+
+      create(orderData) {
+        orderData.id = this.generateNextId();
+        orderData.date = new Date().toISOString().split("T")[0];
+        this.orders.unshift(orderData);
+        this.saveData();
+        return orderData;
+      }
+
+      update(id, updatedFields) {
+        const index = this.orders.findIndex(o => o.id === id);
+        if (index !== -1) {
+          this.orders[index] = { ...this.orders[index], ...updatedFields };
+          this.saveData();
+          return this.orders[index];
+        }
+        return null;
+      }
+
+      updateStatus(id, newStatus) {
+        return this.update(id, { status: newStatus });
+      }
+
+      delete(id) {
+        const prevLen = this.orders.length;
+        this.orders = this.orders.filter(o => o.id !== id);
+        this.saveData();
+        return this.orders.length < prevLen;
+      }
+    }
+
+    // Initialize Database Instance
+    const db = new PressDatabaseManager();
+    let pendingDeleteId = null;
+
+    // DOM Elements
+    const ordersTableBody = document.getElementById("ordersTableBody");
+    const emptyStateMessage = document.getElementById("emptyStateMessage");
+    const recordCountBadge = document.getElementById("recordCountBadge");
+    const searchInput = document.getElementById("searchInput");
+    const statusFilter = document.getElementById("statusFilter");
+    const categoryFilter = document.getElementById("categoryFilter");
+
+    // KPI Elements
+    const statTotalOrders = document.getElementById("statTotalOrders");
+    const statTotalRevenue = document.getElementById("statTotalRevenue");
+    const statInProduction = document.getElementById("statInProduction");
+    const statCompleted = document.getElementById("statCompleted");
+    const statCollectedRevenue = document.getElementById("statCollectedRevenue");
+    const statOutstandingBalance = document.getElementById("statOutstandingBalance");
+
+    // Modal Elements
+    const orderModal = document.getElementById("orderModal");
+    const orderForm = document.getElementById("orderForm");
+    const modalTitle = document.getElementById("modalTitle");
+    const openNewOrderModalBtn = document.getElementById("openNewOrderModalBtn");
+    const closeOrderModalBtn = document.getElementById("closeOrderModalBtn");
+    const cancelOrderModalBtn = document.getElementById("cancelOrderModalBtn");
+    const resetDemoDataBtn = document.getElementById("resetDemoDataBtn");
+    const autoCalcModalBtn = document.getElementById("autoCalcModalBtn");
+
+    // Ticket Modal Elements
+    const ticketModal = document.getElementById("ticketModal");
+    const closeTicketModalBtn = document.getElementById("closeTicketModalBtn");
+    const closeTicketModalBtn2 = document.getElementById("closeTicketModalBtn2");
+    const printTicketBtn = document.getElementById("printTicketBtn");
+
+    // Delete Modal Elements
+    const deleteModal = document.getElementById("deleteModal");
+    const deleteTargetOrderId = document.getElementById("deleteTargetOrderId");
+    const cancelDeleteBtn = document.getElementById("cancelDeleteBtn");
+    const confirmDeleteBtn = document.getElementById("confirmDeleteBtn");
+
+    // Toast
+    const toast = document.getElementById("toastNotification");
+    const toastMsg = document.getElementById("toastMessage");
+    const toastIcon = document.getElementById("toastIcon");
+
+    function showToast(message, type = "success") {
+      toastMsg.textContent = message;
+      toastIcon.textContent = type === "success" ? "✅" : (type === "warning" ? "⚠️" : "ℹ️");
+      toast.classList.remove("opacity-0", "translate-y-3", "pointer-events-none");
+      setTimeout(() => {
+        toast.classList.add("opacity-0", "translate-y-3", "pointer-events-none");
+      }, 3000);
+    }
+
+    function getStatusBadgeClass(status) {
+      switch (status) {
+        case "Pending": return "bg-slate-100 text-slate-700 border-slate-200";
+        case "Pre-Press": return "bg-purple-100 text-purple-700 border-purple-200";
+        case "Printing": return "bg-amber-100 text-amber-800 border-amber-200";
+        case "Finishing": return "bg-blue-100 text-blue-700 border-blue-200";
+        case "Ready": return "bg-emerald-100 text-emerald-800 border-emerald-200";
+        case "Delivered": return "bg-teal-100 text-teal-800 border-teal-200";
+        default: return "bg-slate-100 text-slate-700 border-slate-200";
+      }
+    }
+
+    // Tab Navigation Logic
+    const views = ["ordersView", "estimatorView", "sqlView"];
+    const tabBtns = document.querySelectorAll(".tab-btn");
+
+    function switchTab(targetView) {
+      views.forEach(v => {
+        const el = document.getElementById(v);
+        if (v === targetView) {
+          el.classList.remove("hidden");
+        } else {
+          el.classList.add("hidden");
+        }
+      });
+      tabBtns.forEach(btn => {
+        if (btn.dataset.tab === targetView) {
+          btn.classList.add("bg-indigo-600", "text-white");
+          btn.classList.remove("text-indigo-200");
+        } else {
+          btn.classList.remove("bg-indigo-600", "text-white");
+          btn.classList.add("text-indigo-200");
+        }
+      });
+      if (targetView === "sqlView") {
+        renderSqlExport();
+      } else if (targetView === "estimatorView") {
+        calculateStandaloneEstimate();
+      }
+    }
+
+    tabBtns.forEach(btn => {
+      btn.addEventListener("click", () => switchTab(btn.dataset.tab));
+    });
+
+    // Render Table and KPIs
+    function renderApp() {
+      const orders = db.getAll();
+      const term = searchInput.value.trim().toLowerCase();
+      const selectedStatus = statusFilter.value;
+      const selectedCategory = categoryFilter.value;
+
+      // Filter
+      const filtered = orders.filter(o => {
+        const machine = (o.pressMachine || "").toLowerCase();
+        const matchesSearch = 
+          o.id.toLowerCase().includes(term) ||
+          o.clientName.toLowerCase().includes(term) ||
+          o.jobTitle.toLowerCase().includes(term) ||
+          machine.includes(term);
+        const matchesStatus = (selectedStatus === "ALL") || (o.status === selectedStatus);
+        const matchesCat = (selectedCategory === "ALL") || (o.category === selectedCategory);
+        return matchesSearch && matchesStatus && matchesCat;
+      });
+
+      // Update KPI Statistics
+      statTotalOrders.textContent = orders.length;
+      const totalGross = orders.reduce((acc, o) => acc + o.totalCost, 0);
+      const totalPaid = orders.reduce((acc, o) => acc + o.advancePaid, 0);
+      statTotalRevenue.textContent = `Gross: $${totalGross.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      statCollectedRevenue.textContent = `Paid: $${totalPaid.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      
+      const inProd = orders.filter(o => ["Pre-Press", "Printing", "Finishing"].includes(o.status)).length;
+      statInProduction.textContent = inProd;
+
+      const completed = orders.filter(o => ["Ready", "Delivered"].includes(o.status)).length;
+      statCompleted.textContent = completed;
+
+      const totalBalance = orders.reduce((acc, o) => acc + Math.max(0, (o.totalCost - o.advancePaid)), 0);
+      statOutstandingBalance.textContent = `$${totalBalance.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+      recordCountBadge.textContent = `${filtered.length} of ${orders.length} orders`;
+
+      // Render Table Rows
+      ordersTableBody.innerHTML = "";
+      if (filtered.length === 0) {
+        emptyStateMessage.classList.remove("hidden");
+      } else {
+        emptyStateMessage.classList.add("hidden");
+        filtered.forEach(order => {
+          const balance = Math.max(0, order.totalCost - order.advancePaid);
+          const isPaid = balance === 0;
+          const machineName = order.pressMachine || "Heidelberg Speedmaster 4C";
+
+          const tr = document.createElement("tr");
+          tr.className = "hover:bg-slate-50 transition border-b border-slate-100";
+          tr.innerHTML = `
+            <td class="py-3.5 px-4">
+              <span class="font-mono font-bold text-indigo-900 block">${order.id}</span>
+              <span class="text-xs text-slate-400">Order: ${order.date}</span>
+              <span class="text-xs text-amber-700 block font-medium">Due: ${order.dueDate}</span>
+            </td>
+            <td class="py-3.5 px-4">
+              <p class="font-semibold text-slate-800">${escapeHtml(order.clientName)}</p>
+              <p class="text-xs text-slate-500">${escapeHtml(order.clientPhone)}</p>
+            </td>
+            <td class="py-3.5 px-4 max-w-xs">
+              <p class="font-medium text-slate-900 truncate" title="${escapeHtml(order.jobTitle)}">${escapeHtml(order.jobTitle)}</p>
+              <p class="text-xs text-slate-500">${escapeHtml(order.category)} &bull; ${escapeHtml(order.size)}</p>
+              <p class="text-xs text-slate-400 italic">${escapeHtml(order.paperSpec)}</p>
+            </td>
+            <td class="py-3.5 px-4">
+              <span class="font-semibold text-slate-800 block">${order.quantity.toLocaleString()} pcs</span>
+              <span class="text-[11px] text-indigo-600 font-medium">${escapeHtml(machineName)}</span>
+            </td>
+            <td class="py-3.5 px-4">
+              <p class="font-bold text-slate-800">$${order.totalCost.toFixed(2)}</p>
+              <span class="text-xs px-2 py-0.5 rounded font-medium ${isPaid ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}">
+                ${isPaid ? 'Fully Paid' : `Bal: $${balance.toFixed(2)}`}
+              </span>
+            </td>
+            <td class="py-3.5 px-4">
+              <select data-action="status-change" data-id="${order.id}" class="text-xs font-semibold rounded-lg px-2 py-1 border cursor-pointer ${getStatusBadgeClass(order.status)} focus:outline-none">
+                <option value="Pending" ${order.status === 'Pending' ? 'selected' : ''}>Pending</option>
+                <option value="Pre-Press" ${order.status === 'Pre-Press' ? 'selected' : ''}>Pre-Press</option>
+                <option value="Printing" ${order.status === 'Printing' ? 'selected' : ''}>Printing</option>
+                <option value="Finishing" ${order.status === 'Finishing' ? 'selected' : ''}>Finishing</option>
+                <option value="Ready" ${order.status === 'Ready' ? 'selected' : ''}>Ready</option>
+                <option value="Delivered" ${order.status === 'Delivered' ? 'selected' : ''}>Delivered</option>
+              </select>
+            </td>
+            <td class="py-3.5 px-4 text-right space-x-1 whitespace-nowrap">
+              <button data-action="view-ticket" data-id="${order.id}" title="View Production Ticket" class="px-2.5 py-1 text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold rounded-md border border-indigo-200 transition">
+                Docket
+              </button>
+              <button data-action="edit-order" data-id="${order.id}" title="Edit Order Details" class="px-2.5 py-1 text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-md border border-slate-300 transition">
+                Edit
+              </button>
+              <button data-action="delete-order" data-id="${order.id}" title="Delete Record" class="px-2 py-1 text-xs bg-rose-50 hover:bg-rose-100 text-rose-700 font-semibold rounded-md border border-rose-200 transition">
+                &times;
+              </button>
+            </td>
+          `;
+          ordersTableBody.appendChild(tr);
+        });
+      }
+      renderSqlExport();
+    }
+
+    function escapeHtml(str) {
+      if (!str) return "";
+      return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    // Standalone Cost Estimator Engine
+    const estInputs = ["estJobType", "estQuantity", "estUps", "estPaperCost", "estColorPlates", "estFinishingCost", "estSpoilage", "estMarkup"];
+    let lastCalculatedQuote = 0;
+
+    function calculateStandaloneEstimate() {
+      const qty = Math.max(1, parseInt(document.getElementById("estQuantity").value, 10) || 1000);
+      const ups = Math.max(1, parseInt(document.getElementById("estUps").value, 10) || 4);
+      const reamRate = parseFloat(document.getElementById("estPaperCost").value) || 45;
+      const plates = parseInt(document.getElementById("estColorPlates").value, 10) || 0;
+      const finishPerK = parseFloat(document.getElementById("estFinishingCost").value) || 0;
+      const spoilagePct = parseFloat(document.getElementById("estSpoilage").value) || 0;
+      const markupPct = parseFloat(document.getElementById("estMarkup").value) || 0;
+
+      const rawSheets = Math.ceil(qty / ups);
+      const totalSheets = Math.ceil(rawSheets * (1 + spoilagePct / 100));
+      const reamsNeeded = totalSheets / 500;
+      const paperCost = reamsNeeded * reamRate;
+      const plateCost = plates * 15;
+      const impressionAndFinishCost = (qty / 1000) * (finishPerK + 18);
+      const subtotal = paperCost + plateCost + impressionAndFinishCost;
+      const finalQuote = subtotal * (1 + markupPct / 100);
+      lastCalculatedQuote = parseFloat(finalQuote.toFixed(2));
+
+      document.getElementById("calcSheetsOut").textContent = `${totalSheets.toLocaleString()} parent sheets`;
+      document.getElementById("calcPaperOut").textContent = `$${paperCost.toFixed(2)}`;
+      document.getElementById("calcPlateOut").textContent = `$${plateCost.toFixed(2)}`;
+      document.getElementById("calcFinishOut").textContent = `$${impressionAndFinishCost.toFixed(2)}`;
+      document.getElementById("calcUnitOut").textContent = `$${(finalQuote / qty).toFixed(3)} / pc`;
+      document.getElementById("calcTotalQuote").textContent = `$${finalQuote.toFixed(2)}`;
+    }
+
+    estInputs.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.addEventListener("input", calculateStandaloneEstimate);
+    });
+
+    document.getElementById("convertEstimateToOrderBtn").addEventListener("click", () => {
+      calculateStandaloneEstimate();
+      openCreateModal();
+      document.getElementById("jobCategoryInput").value = document.getElementById("estJobType").value;
+      document.getElementById("quantityInput").value = document.getElementById("estQuantity").value;
+      document.getElementById("totalCostInput").value = lastCalculatedQuote.toFixed(2);
+      document.getElementById("advancePaidInput").value = (lastCalculatedQuote * 0.5).toFixed(2);
+      showToast("Estimate loaded into New Job Order form.");
+    });
+
+    // Auto-Calculate Cost inside Modal
+    autoCalcModalBtn.addEventListener("click", () => {
+      const qty = parseInt(document.getElementById("quantityInput").value, 10) || 1000;
+      const cat = document.getElementById("jobCategoryInput").value;
+      let baseSetup = 65;
+      let perUnit = 0.12;
+      if (cat === "Books / Booklets") { baseSetup = 140; perUnit = 1.35; }
+      else if (cat === "Packaging / Boxes") { baseSetup = 110; perUnit = 0.45; }
+      else if (cat === "Large Format Banners") { baseSetup = 25; perUnit = 18.00; }
+      else if (cat === "Stationery / Cards") { baseSetup = 45; perUnit = 0.18; }
+      const estimated = parseFloat((baseSetup + qty * perUnit).toFixed(2));
+      document.getElementById("totalCostInput").value = estimated.toFixed(2);
+      document.getElementById("advancePaidInput").value = (estimated * 0.5).toFixed(2);
+      showToast(`Calculated quote of $${estimated.toFixed(2)} for ${qty.toLocaleString()} copies.`);
+    });
+
+    // SQL DDL & DML Generator
+    function generateSqlString() {
+      const orders = db.getAll();
+      let sql = `-- =========================================================\n`;
+      sql += `-- DATABASE MANAGEMENT SYSTEM FOR PRINTING PRESS JOB ORDER\n`;
+      sql += `-- Generated: ${new Date().toISOString().split('T')[0]}\n`;
+      sql += `-- =========================================================\n\n`;
+      sql += `CREATE TABLE IF NOT EXISTS job_orders (\n`;
+      sql += `  job_id VARCHAR(20) PRIMARY KEY,\n`;
+      sql += `  order_date DATE NOT NULL,\n`;
+      sql += `  client_name VARCHAR(120) NOT NULL,\n`;
+      sql += `  client_phone VARCHAR(40) NOT NULL,\n`;
+      sql += `  job_title VARCHAR(200) NOT NULL,\n`;
+      sql += `  category VARCHAR(80) NOT NULL,\n`;
+      sql += `  paper_spec VARCHAR(120) NOT NULL,\n`;
+      sql += `  print_size VARCHAR(60) NOT NULL,\n`;
+      sql += `  press_machine VARCHAR(80),\n`;
+      sql += `  quantity INT NOT NULL,\n`;
+      sql += `  finishing VARCHAR(150),\n`;
+      sql += `  due_date DATE NOT NULL,\n`;
+      sql += `  total_cost DECIMAL(10,2) NOT NULL,\n`;
+      sql += `  advance_paid DECIMAL(10,2) NOT NULL,\n`;
+      sql += `  status VARCHAR(30) DEFAULT 'Pending'\n`;
+      sql += `);\n\n`;
+      sql += `-- Active Job Order Records (${orders.length} rows)\n`;
+      orders.forEach(o => {
+        const esc = s => String(s || "").replace(/'/g, "''");
+        sql += `INSERT INTO job_orders VALUES ('${esc(o.id)}', '${esc(o.date)}', '${esc(o.clientName)}', '${esc(o.clientPhone)}', '${esc(o.jobTitle)}', '${esc(o.category)}', '${esc(o.paperSpec)}', '${esc(o.size)}', '${esc(o.pressMachine || "Heidelberg Speedmaster 4C")}', ${o.quantity}, '${esc(o.finishing)}', '${esc(o.dueDate)}', ${o.totalCost.toFixed(2)}, ${o.advancePaid.toFixed(2)}, '${esc(o.status)}');\n`;
+      });
+      return sql;
+    }
+
+    function renderSqlExport() {
+      const block = document.getElementById("sqlCodeBlock");
+      if (block) block.textContent = generateSqlString();
+    }
+
+    // Copy & Download SQL / CSV
+    document.getElementById("copySqlBtn").addEventListener("click", () => {
+      const text = generateSqlString();
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      try {
+        document.execCommand("copy");
+        showToast("SQL schema and INSERT statements copied to clipboard!");
+      } catch (err) {
+        showToast("Copy failed, please select text manually.", "warning");
+      }
+      document.body.removeChild(ta);
+    });
+
+    function triggerDownload(filename, content, mimeType) {
+      const blob = new Blob([content], { type: mimeType });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    document.getElementById("downloadSqlBtn").addEventListener("click", () => {
+      triggerDownload("printing_press_job_orders.sql", generateSqlString(), "application/sql");
+      showToast("Downloaded printing_press_job_orders.sql");
+    });
+
+    document.getElementById("exportCsvBtn").addEventListener("click", () => {
+      const orders = db.getAll();
+      const headers = ["Job ID", "Order Date", "Client Name", "Phone", "Job Title", "Category", "Paper Spec", "Size", "Press Machine", "Quantity", "Finishing", "Due Date", "Total Cost", "Advance Paid", "Balance Due", "Status"];
+      const rows = orders.map(o => [
+        o.id, o.date, o.clientName, o.clientPhone, o.jobTitle, o.category, o.paperSpec, o.size,
+        o.pressMachine || "Heidelberg Speedmaster 4C", o.quantity, o.finishing, o.dueDate,
+        o.totalCost.toFixed(2), o.advancePaid.toFixed(2), Math.max(0, o.totalCost - o.advancePaid).toFixed(2), o.status
+      ].map(v => `"${String(v || '').replace(/"/g, '""')}"`).join(","));
+      const csv = [headers.join(","), ...rows].join("\n");
+      triggerDownload("printing_press_job_orders.csv", csv, "text/csv;charset=utf-8;");
+      showToast("Exported database to CSV spreadsheet.");
+    });
+
+    // Modal Operations
+    function openCreateModal() {
+      orderForm.reset();
+      document.getElementById("formOrderId").value = "";
+      modalTitle.textContent = "New Printing Press Job Order";
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 5);
+      document.getElementById("dueDateInput").value = tomorrow.toISOString().split("T")[0];
+      orderModal.classList.remove("hidden");
+      orderModal.classList.add("flex");
+    }
+
+    function openEditModal(orderId) {
+      const order = db.getById(orderId);
+      if (!order) return;
+      document.getElementById("formOrderId").value = order.id;
+      modalTitle.textContent = `Edit Order: ${order.id}`;
+      document.getElementById("clientNameInput").value = order.clientName;
+      document.getElementById("clientPhoneInput").value = order.clientPhone;
+      document.getElementById("jobTitleInput").value = order.jobTitle;
+      document.getElementById("jobCategoryInput").value = order.category;
+      document.getElementById("paperSpecInput").value = order.paperSpec;
+      document.getElementById("printSizeInput").value = order.size;
+      document.getElementById("pressMachineInput").value = order.pressMachine || "Heidelberg Speedmaster 4C";
+      document.getElementById("quantityInput").value = order.quantity;
+      document.getElementById("finishingInput").value = order.finishing || "";
+      document.getElementById("dueDateInput").value = order.dueDate;
+      document.getElementById("totalCostInput").value = order.totalCost;
+      document.getElementById("advancePaidInput").value = order.advancePaid;
+      document.getElementById("orderStatusInput").value = order.status;
+
+      orderModal.classList.remove("hidden");
+      orderModal.classList.add("flex");
+    }
+
+    function closeModal() {
+      orderModal.classList.add("hidden");
+      orderModal.classList.remove("flex");
+    }
+
+    function openTicketModal(orderId) {
+      const order = db.getById(orderId);
+      if (!order) return;
+      document.getElementById("ticketJobId").textContent = order.id;
+      document.getElementById("ticketDate").textContent = `Order Placed: ${order.date}`;
+      document.getElementById("ticketClientName").textContent = order.clientName;
+      document.getElementById("ticketClientPhone").textContent = `Phone: ${order.clientPhone}`;
+      document.getElementById("ticketDueDate").textContent = order.dueDate;
+      document.getElementById("ticketStatus").textContent = order.status;
+      document.getElementById("ticketJobTitle").textContent = order.jobTitle;
+      document.getElementById("ticketCategory").textContent = order.category;
+      document.getElementById("ticketPaper").textContent = order.paperSpec;
+      document.getElementById("ticketSize").textContent = order.size;
+      document.getElementById("ticketQuantity").textContent = `${order.quantity.toLocaleString()} pcs`;
+      document.getElementById("ticketFinishing").textContent = order.finishing || "Standard Trim";
+      document.getElementById("ticketMachine").textContent = order.pressMachine || "Heidelberg Speedmaster 4C";
+      document.getElementById("ticketTotal").textContent = `$${order.totalCost.toFixed(2)}`;
+      document.getElementById("ticketAdvance").textContent = `$${order.advancePaid.toFixed(2)}`;
+      const balance = Math.max(0, order.totalCost - order.advancePaid);
+      document.getElementById("ticketBalance").textContent = `$${balance.toFixed(2)}`;
+
+      ticketModal.classList.remove("hidden");
+      ticketModal.classList.add("flex");
+    }
+
+    function closeTicketModal() {
+      ticketModal.classList.add("hidden");
+      ticketModal.classList.remove("flex");
+    }
+
+    // Event Listeners
+    openNewOrderModalBtn.addEventListener("click", openCreateModal);
+    closeOrderModalBtn.addEventListener("click", closeModal);
+    cancelOrderModalBtn.addEventListener("click", closeModal);
+
+    closeTicketModalBtn.addEventListener("click", closeTicketModal);
+    closeTicketModalBtn2.addEventListener("click", closeTicketModal);
+    printTicketBtn.addEventListener("click", () => {
+      window.print();
+    });
+
+    resetDemoDataBtn.addEventListener("click", () => {
+      db.resetToSeed();
+      renderApp();
+      showToast("Database restored to default demo records.");
+    });
+
+    searchInput.addEventListener("input", renderApp);
+    statusFilter.addEventListener("change", renderApp);
+    categoryFilter.addEventListener("change", renderApp);
+
+    // Save Form (Create or Update)
+    orderForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const existingId = document.getElementById("formOrderId").value;
+      const orderPayload = {
+        clientName: document.getElementById("clientNameInput").value.trim(),
+        clientPhone: document.getElementById("clientPhoneInput").value.trim(),
+        jobTitle: document.getElementById("jobTitleInput").value.trim(),
+        category: document.getElementById("jobCategoryInput").value,
+        paperSpec: document.getElementById("paperSpecInput").value.trim(),
+        size: document.getElementById("printSizeInput").value.trim(),
+        pressMachine: document.getElementById("pressMachineInput").value,
+        quantity: parseInt(document.getElementById("quantityInput").value, 10) || 1,
+        finishing: document.getElementById("finishingInput").value.trim(),
+        dueDate: document.getElementById("dueDateInput").value,
+        totalCost: parseFloat(document.getElementById("totalCostInput").value) || 0,
+        advancePaid: parseFloat(document.getElementById("advancePaidInput").value) || 0,
+        status: document.getElementById("orderStatusInput").value
+      };
+
+      if (existingId) {
+        db.update(existingId, orderPayload);
+        showToast(`Job Order ${existingId} updated successfully.`);
+      } else {
+        const created = db.create(orderPayload);
+        showToast(`New Job Order ${created.id} created.`);
+      }
+
+      closeModal();
+      renderApp();
+    });
+
+    // Delegated actions for table buttons and status select
+    ordersTableBody.addEventListener("click", (e) => {
+      const btn = e.target.closest("button");
+      if (!btn) return;
+      const action = btn.dataset.action;
+      const id = btn.dataset.id;
+
+      if (action === "view-ticket") {
+        openTicketModal(id);
+      } else if (action === "edit-order") {
+        openEditModal(id);
+      } else if (action === "delete-order") {
+        pendingDeleteId = id;
+        deleteTargetOrderId.textContent = id;
+        deleteModal.classList.remove("hidden");
+        deleteModal.classList.add("flex");
+      }
+    });
+
+    ordersTableBody.addEventListener("change", (e) => {
+      if (e.target.dataset.action === "status-change") {
+        const id = e.target.dataset.id;
+        const newStatus = e.target.value;
+        db.updateStatus(id, newStatus);
+        renderApp();
+        showToast(`Order ${id} status moved to ${newStatus}.`);
+      }
+    });
+
+    // Delete Modal controls
+    cancelDeleteBtn.addEventListener("click", () => {
+      deleteModal.classList.add("hidden");
+      deleteModal.classList.remove("flex");
+      pendingDeleteId = null;
+    });
+
+    confirmDeleteBtn.addEventListener("click", () => {
+      if (pendingDeleteId) {
+        db.delete(pendingDeleteId);
+        showToast(`Order ${pendingDeleteId} removed from database.`, "warning");
+        pendingDeleteId = null;
+        deleteModal.classList.add("hidden");
+        deleteModal.classList.remove("flex");
+        renderApp();
+      }
+    });
+
+    // Initial render
+    calculateStandaloneEstimate();
+    renderApp();
+  </script>
+</body>
+</html>
